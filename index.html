@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>محوّل القصة إلى شعر</title>
+<meta name="description" content="اكتب قصتك وحوّلها إلى أبيات شعر">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#faf6ee;--card:#fffdf8;--ink:#2b2118;--mute:#7a6a58;--gold:#a8782a;--line:#e6dccb;--btn:#2b2118;--btnink:#faf6ee}
+@media (prefers-color-scheme: dark){:root{--bg:#17130e;--card:#211b14;--ink:#f1e7d6;--mute:#a99a85;--gold:#d9a548;--line:#3a3025;--btn:#d9a548;--btnink:#17130e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Tajawal',system-ui,sans-serif;line-height:1.7}
+main{max-width:720px;margin:0 auto;padding:24px 16px 48px}
+h1{font-family:'Amiri',serif;font-size:2rem;text-align:center;margin:8px 0 4px;color:var(--gold)}
+.sub{text-align:center;color:var(--mute);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+label{display:block;font-weight:700;margin:12px 0 6px}
+textarea,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+textarea{min-height:170px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+button{font:inherit;font-weight:700;cursor:pointer;border:0;border-radius:10px;padding:12px 18px;background:var(--btn);color:var(--btnink)}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+.go{width:100%;margin-top:16px;font-size:1.05rem}
+#out{margin-top:20px;display:none}
+.bayt{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 40px;padding:14px 8px;border-bottom:1px dashed var(--line);font-family:'Amiri',serif;font-size:1.35rem}
+.bayt:last-child{border-bottom:0}
+.bayt span{flex:1 1 220px;text-align:center}
+.tools{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+#msg{color:var(--mute);text-align:center;margin-top:12px;min-height:1.5em}
+footer{text-align:center;color:var(--mute);font-size:.85rem;margin-top:24px}
+</style>
+</head>
+<body>
+<main>
+<h1>محوّل القصة إلى شعر</h1>
+<p class="sub">اكتب قصتك، واختر اللون الشعري، وتتحول إلى أبيات</p>
+<div class="card">
+<label for="story">قصتك</label>
+<textarea id="story" maxlength="2000" placeholder="اكتب القصة هنا..."></textarea>
+<div class="row">
+<div><label for="style">اللون الشعري</label>
+<select id="style">
+<option>شعر نبطي (عامي)</option>
+<option>شعر فصيح عمودي</option>
+<option>غزل رقيق</option>
+<option>حماسي وفخر</option>
+<option>حزين ورثاء</option>
+<option>حكمة ووعظ</option>
+</select></div>
+<div><label for="count">عدد الأبيات</label>
+<select id="count"><option>4</option><option selected>8</option><option>12</option><option>16</option></select></div>
+</div>
+<button class="go" id="go">حوّلها إلى شعر</button>
+<div id="msg"></div>
+</div>
+<div class="card" id="out">
+<div id="poem"></div>
+<div class="tools">
+<button class="ghost" id="copy">نسخ القصيدة</button>
+<button class="ghost" id="again">أعد الصياغة</button>
+</div>
+</div>
+<footer>القصائد تُنظم بالذكاء الاصطناعي وقد تحتاج لمراجعة الوزن والقافية</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let lines=[];
+function render(){
+  const p=$('poem');p.textContent='';
+  lines.forEach(l=>{
+    const d=document.createElement('div');d.className='bayt';
+    l.forEach(h=>{const s=document.createElement('span');s.textContent=h;d.appendChild(s)});
+    p.appendChild(d);
+  });
+  $('out').style.display=lines.length?'block':'none';
+}
+function parse(t){
+  return t.split('\n').map(x=>x.trim()).filter(x=>x.includes('|')).map(x=>x.split('|').map(s=>s.trim()).filter(Boolean).slice(0,2)).filter(a=>a.length===2);
+}
+async function run(){
+  const story=$('story').value.trim();
+  if(story.length<10){$('msg').textContent='اكتب قصة أطول شوي';return}
+  $('go').disabled=true;$('again').disabled=true;$('msg').textContent='جاري نظم الأبيات...';
+  try{
+    const r=await fetch('/api/poem',{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({story,style:$('style').value,count:Number($('count').value)})});
+    if(r.status===429){$('msg').textContent='انتهت محاولاتك المجانية لليوم، ارجع بكرة';return}
+    if(!r.ok){$('msg').textContent='صار خطأ، جرّب مرة ثانية';return}
+    const data=await r.json();
+    lines=parse(data.text||'');
+    if(!lines.length){$('msg').textContent='ما طلعت النتيجة بالشكل المطلوب، جرّب مرة ثانية';return}
+    $('msg').textContent='';render();
+    $('out').scrollIntoView({behavior:'smooth'});
+  }catch(e){
+    $('msg').textContent='تأكد من اتصالك وجرّب مرة ثانية';
+  }finally{$('go').disabled=false;$('again').disabled=false}
+}
+$('go').onclick=run;$('again').onclick=run;
+$('copy').onclick=async()=>{
+  const t=lines.map(l=>l.join('   ...   ')).join('\n');
+  try{await navigator.clipboard.writeText(t);$('copy').textContent='تم النسخ'}catch(e){$('copy').textContent='انسخها يدوياً'}
+  setTimeout(()=>$('copy').textContent='نسخ القصيدة',1800);
+};
+</script>
+</body>
+</html>
